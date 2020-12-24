@@ -75,6 +75,10 @@ button {
     margin: 0.2em 0.1em;
 }
 
+#midiActive {
+  visibility: hidden;
+}
+
 div#videos {
     display: flex;
     flex-direction: row;
@@ -83,8 +87,15 @@ div#videos {
 
 div#videos > video {
     background: black;
-    width: 640px;
-    height: 100%;
     display: block;
     margin: 1em;
+}
+div#videos > #localVideo {
+  width: 320px;
+  height: 100%;
+}
+
+div#videos > #remoteVideo {
+  width: 640px;
+  height: 100%;
 }

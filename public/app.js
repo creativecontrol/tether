@@ -1,199 +1,457 @@
-mdc.ripple.MDCRipple.attachTo(document.querySelector('.mdc-button'));
+class VCMIDI {
+  constructor() {
+    mdc.ripple.MDCRipple.attachTo(document.querySelector('.mdc-button'));
 
-// DEfault configuration - Change these if you have a different STUN or TURN server.
-const configuration = {
-  iceServers: [
-    {
-      urls: [
-        'stun:stun1.l.google.com:19302',
-        'stun:stun2.l.google.com:19302',
+    this.configuration = {
+      iceServers: [
+        {
+          urls: [
+            'stun:stun1.l.google.com:19302',
+            'stun:stun2.l.google.com:19302',
+          ],
+        },
       ],
-    },
-  ],
-  iceCandidatePoolSize: 10,
-};
+      iceCandidatePoolSize: 10,
+    };
 
-let peerConnection = null;
-let localStream = null;
-let remoteStream = null;
-let roomDialog = null;
-let roomId = null;
+    this.db = null;
+    this.roomRef = null;
 
-function init() {
-  document.querySelector('#cameraBtn').addEventListener('click', openUserMedia);
-  document.querySelector('#hangupBtn').addEventListener('click', hangUp);
-  document.querySelector('#createBtn').addEventListener('click', createRoom);
-  document.querySelector('#joinBtn').addEventListener('click', joinRoom);
-  roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog'));
-}
+    this.peerConnection = null;
+    this.localStream = null;
+    this.remoteStream = null;
+    this.localDataChannel = null;
+    this.dataChannelIsOpen = false;
+    this.receiveDataChannel = null;
+    this.roomDialog = null;
+    this.roomId = null;
 
-async function createRoom() {
-  document.querySelector('#createBtn').disabled = true;
-  document.querySelector('#joinBtn').disabled = true;
-  const db = firebase.firestore();
+    this.activateMidiAction = document.getElementById("activateMidi");
+    this.midiInitButton = document.getElementById("midiInactive");
+    this.midiUI = document.getElementById("midiActive");
+    this.inputMenu = document.getElementById("midiInSelect");
+    this.outputMenu = document.getElementById("midiOutSelect");
+    this.currentInput = null;
+    this.curretOutput = null;
 
-  console.log('Create PeerConnection with configuration: ', configuration);
-  peerConnection = new RTCPeerConnection(configuration);
+    this.init();
 
-  registerPeerConnectionListeners();
+  }
 
-  // Add code for creating a room here
-  
-  // Code for creating room above
-  
-  localStream.getTracks().forEach(track => {
-    peerConnection.addTrack(track, localStream);
-  });
+  init() {
+    let that = this;
+    document.querySelector('#cameraBtn').onclick = ()=>{this.openUserMedia();};
+    document.querySelector('#hangupBtn').onclick = ()=>{this.hangUp();};
+    document.querySelector('#createBtn').onclick = ()=>{this.createRoom();};
+    document.querySelector('#joinBtn').onclick = ()=>{this.joinRoom();};
+    // document.querySelector('#sendMsg').onclick = ()=>{this.sendAMessage();};
+    this.roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog'));
 
-  // Code for creating a room below
+    this.activateMidiAction.onclick = () => {
+      that.midiInitButton.style.visibility = "hidden";
+      that.midiUI.style.visibility = "visible";
+      // Tone.context.resume();
+      that.initMidi();
+    }
 
-  // Code for creating a room above
+    this.inputMenu.onchange = () => {
+        console.log('changing MIDI input');
+        if (that.currentInput) {
+          that.currentInput.removeListener();
+        }
+        try {
+          that.currentInput = WebMidi.getInputById(that.inputMenu.value);
+          console.log(that.currentInput);
 
-  // Code for collecting ICE candidates below
+          that.currentInput.addListener('midimessage', 'all', (midiEvent) => {
+            console.log("MIDI message");
+            // console.log(midiEvent);
+            that.sendMIDIMessage(midiEvent);
+          })
+        } catch (error) {
+          console.error(error);
+        }
+    };
+    this.outputMenu.onchange = ()=> {
+      that.currentOutput = WebMidi.getOutputById(that.outputMenu.value);
+      console.log(that.currentOutput);
+    }
+  }
 
-  // Code for collecting ICE candidates above
+  async createRoom() {
+    let that = this;
 
-  peerConnection.addEventListener('track', event => {
-    console.log('Got remote track:', event.streams[0]);
-    event.streams[0].getTracks().forEach(track => {
-      console.log('Add a track to the remoteStream:', track);
-      remoteStream.addTrack(track);
+    document.querySelector('#createBtn').disabled = true;
+    document.querySelector('#joinBtn').disabled = true;
+    this.db = firebase.firestore();
+    this.roomRef = await this.db.collection('rooms').doc();
+
+    console.log('Create PeerConnection with configuration: ', that.configuration);
+    this.peerConnection = new RTCPeerConnection(that.configuration);
+
+    this.registerPeerConnectionListeners();
+
+    this.localStream.getTracks().forEach(track => {
+      that.peerConnection.addTrack(track, that.localStream);
     });
-  });
 
-  // Listening for remote session description below
+    // Add dataChannel for MIDI sending
 
-  // Listening for remote session description above
+    this.localDataChannel = this.peerConnection.createDataChannel('midi');
 
-  // Listen for remote ICE candidates below
+    this.localDataChannel.onopen = event => {
+      that.dataChannelIsOpen = true;
+    };
+    this.localDataChannel.onclose = event => {
+      that.dataChannelIsOpen = true;
+    };
+    this.localDataChannel.onmessage = event => {
+      that.handleMIDIMessage(event.data);
+    };
 
-  // Listen for remote ICE candidates above
-}
 
-function joinRoom() {
-  document.querySelector('#createBtn').disabled = true;
-  document.querySelector('#joinBtn').disabled = true;
-
-  document.querySelector('#confirmJoinBtn').
-      addEventListener('click', async () => {
-        roomId = document.querySelector('#room-id').value;
-        console.log('Join room: ', roomId);
-        document.querySelector(
-            '#currentRoom').innerText = `Current room is ${roomId} - You are the callee!`;
-        await joinRoomById(roomId);
-      }, {once: true});
-  roomDialog.open();
-}
-
-async function joinRoomById(roomId) {
-  const db = firebase.firestore();
-  const roomRef = db.collection('rooms').doc(`${roomId}`);
-  const roomSnapshot = await roomRef.get();
-  console.log('Got room:', roomSnapshot.exists);
-
-  if (roomSnapshot.exists) {
-    console.log('Create PeerConnection with configuration: ', configuration);
-    peerConnection = new RTCPeerConnection(configuration);
-    registerPeerConnectionListeners();
-    localStream.getTracks().forEach(track => {
-      peerConnection.addTrack(track, localStream);
-    });
 
     // Code for collecting ICE candidates below
+    this.callerCandidatesCollection = this.roomRef.collection('callerCandidates');
 
+    this.peerConnection.addEventListener('icecandidate', event => {
+      if (!event.candidate) {
+        console.log('Got final candidate!');
+        return;
+      }
+      console.log('Got candidate: ', event.candidate);
+      this.callerCandidatesCollection.add(event.candidate.toJSON());
+    });
     // Code for collecting ICE candidates above
 
-    peerConnection.addEventListener('track', event => {
+    // Code for creating a room below
+    this.offer = await this.peerConnection.createOffer();
+    await this.peerConnection.setLocalDescription(this.offer);
+    console.log('Created offer:', this.offer);
+
+    this.roomWithOffer = {
+      'offer': {
+        type: that.offer.type,
+        sdp: that.offer.sdp,
+      },
+    };
+    await this.roomRef.set(this.roomWithOffer);
+    this.roomId = this.roomRef.id;
+    console.log(`New room created with SDP offer. Room ID: ${this.roomRef.id}`);
+    document.querySelector(
+        '#currentRoom').innerText = `Current room is ${this.roomRef.id} - You are the caller!`;
+    // Code for creating a room above
+
+    this.peerConnection.addEventListener('track', event => {
       console.log('Got remote track:', event.streams[0]);
       event.streams[0].getTracks().forEach(track => {
         console.log('Add a track to the remoteStream:', track);
-        remoteStream.addTrack(track);
+        that.remoteStream.addTrack(track);
       });
     });
 
-    // Code for creating SDP answer below
-
-    // Code for creating SDP answer above
-
-    // Listening for remote ICE candidates below
-
-    // Listening for remote ICE candidates above
-  }
-}
-
-async function openUserMedia(e) {
-  const stream = await navigator.mediaDevices.getUserMedia(
-      {video: true, audio: true});
-  document.querySelector('#localVideo').srcObject = stream;
-  localStream = stream;
-  remoteStream = new MediaStream();
-  document.querySelector('#remoteVideo').srcObject = remoteStream;
-
-  console.log('Stream:', document.querySelector('#localVideo').srcObject);
-  document.querySelector('#cameraBtn').disabled = true;
-  document.querySelector('#joinBtn').disabled = false;
-  document.querySelector('#createBtn').disabled = false;
-  document.querySelector('#hangupBtn').disabled = false;
-}
-
-async function hangUp(e) {
-  const tracks = document.querySelector('#localVideo').srcObject.getTracks();
-  tracks.forEach(track => {
-    track.stop();
-  });
-
-  if (remoteStream) {
-    remoteStream.getTracks().forEach(track => track.stop());
-  }
-
-  if (peerConnection) {
-    peerConnection.close();
-  }
-
-  document.querySelector('#localVideo').srcObject = null;
-  document.querySelector('#remoteVideo').srcObject = null;
-  document.querySelector('#cameraBtn').disabled = false;
-  document.querySelector('#joinBtn').disabled = true;
-  document.querySelector('#createBtn').disabled = true;
-  document.querySelector('#hangupBtn').disabled = true;
-  document.querySelector('#currentRoom').innerText = '';
-
-  // Delete room on hangup
-  if (roomId) {
-    const db = firebase.firestore();
-    const roomRef = db.collection('rooms').doc(roomId);
-    const calleeCandidates = await roomRef.collection('calleeCandidates').get();
-    calleeCandidates.forEach(async candidate => {
-      await candidate.delete();
+    // Listening for remote session description below
+    this.roomRef.onSnapshot(async snapshot => {
+      that.data = snapshot.data();
+      if (!that.peerConnection.currentRemoteDescription && that.data && that.data.answer) {
+        console.log('Got remote description: ', that.data.answer);
+        that.rtcSessionDescription = new RTCSessionDescription(that.data.answer);
+        await that.peerConnection.setRemoteDescription(that.rtcSessionDescription);
+      }
     });
-    const callerCandidates = await roomRef.collection('callerCandidates').get();
-    callerCandidates.forEach(async candidate => {
-      await candidate.delete();
+    // Listening for remote session description above
+
+    // Listen for remote ICE candidates below
+    this.roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
+      snapshot.docChanges().forEach(async change => {
+        if (change.type === 'added') {
+          let data = change.doc.data();
+          console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+          await that.peerConnection.addIceCandidate(new RTCIceCandidate(data));
+        }
+      });
     });
-    await roomRef.delete();
+    // Listen for remote ICE candidates above
   }
 
-  document.location.reload(true);
+  /**
+  */
+  joinRoom() {
+    let that = this;
+    document.querySelector('#createBtn').disabled = true;
+    document.querySelector('#joinBtn').disabled = true;
+
+    document.querySelector('#confirmJoinBtn').
+        addEventListener('click', async () => {
+          that.roomId = document.querySelector('#room-id').value;
+          console.log('Join room: ', that.roomId);
+          document.querySelector(
+              '#currentRoom').innerText = `Current room is ${that.roomId} - You are the callee!`;
+          await that.joinRoomById(that.roomId);
+        }, {once: true});
+    this.roomDialog.open();
+  }
+
+  /**
+  */
+  async joinRoomById(roomId) {
+    let that = this;
+
+    this.db = firebase.firestore();
+    this.roomRef = this.db.collection('rooms').doc(`${roomId}`);
+    this.roomSnapshot = await this.roomRef.get();
+    console.log('Got room:', this.roomSnapshot.exists);
+
+    if (this.roomSnapshot.exists) {
+      console.log('Create PeerConnection with configuration: ', that.configuration);
+      that.peerConnection = new RTCPeerConnection(that.configuration);
+      that.registerPeerConnectionListeners();
+      that.localStream.getTracks().forEach(track => {
+        that.peerConnection.addTrack(track, that.localStream);
+      });
+
+      // Code for collecting ICE candidates below
+      this.calleeCandidatesCollection = this.roomRef.collection('calleeCandidates');
+      this.peerConnection.addEventListener('icecandidate', event => {
+        if (!event.candidate) {
+          console.log('Got final candidate!');
+          return;
+        }
+        console.log('Got candidate: ', event.candidate);
+        that.calleeCandidatesCollection.add(event.candidate.toJSON());
+      });
+      // Code for collecting ICE candidates above
+
+      this.peerConnection.addEventListener('track', event => {
+        console.log('Got remote track:', event.streams[0]);
+        event.streams[0].getTracks().forEach(track => {
+          console.log('Add a track to the remoteStream:', track);
+          that.remoteStream.addTrack(track);
+        });
+      });
+
+      // Handle MIDI over the DataChannel
+      this.peerConnection.ondatachannel = event => {
+        console.log("caller send channel: ", event.channel);
+        that.localDataChannel = event.channel;
+        that.localDataChannel.onmessage = event => {that.handleMIDIMessage(event.data);};
+        that.localDataChannel.onopen = () => {that.dataChannelIsOpen = true;};
+        that.localDataChannel.onclose = () => {that.dataChannelIsOpen = false;};
+      }
+
+      // Code for creating SDP answer below
+      this.offer = this.roomSnapshot.data().offer;
+      console.log('Got offer:', this.offer);
+      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(this.offer));
+      this.answer = await this.peerConnection.createAnswer();
+      console.log('Created answer:', this.answer);
+      await this.peerConnection.setLocalDescription(this.answer);
+
+      this.roomWithAnswer = {
+        answer: {
+          type: that.answer.type,
+          sdp: that.answer.sdp,
+        },
+      };
+      await this.roomRef.update(this.roomWithAnswer);
+      // Code for creating SDP answer above
+
+      // Listening for remote ICE candidates below
+      this.roomRef.collection('callerCandidates').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(async change => {
+          if (change.type === 'added') {
+            let data = change.doc.data();
+            console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+            await that.peerConnection.addIceCandidate(new RTCIceCandidate(data));
+          }
+        });
+      });
+      // Listening for remote ICE candidates above
+    }
+  }
+
+  /**
+  */
+  async openUserMedia(e) {
+    let that = this;
+
+    this.stream = await navigator.mediaDevices.getUserMedia(
+        {video: true, audio: true});
+    document.querySelector('#localVideo').srcObject = this.stream;
+    this.localStream = this.stream;
+    this.remoteStream = new MediaStream();
+    document.querySelector('#remoteVideo').srcObject = this.remoteStream;
+
+    console.log('Stream:', document.querySelector('#localVideo').srcObject);
+    document.querySelector('#cameraBtn').disabled = true;
+    document.querySelector('#joinBtn').disabled = false;
+    document.querySelector('#createBtn').disabled = false;
+    document.querySelector('#hangupBtn').disabled = false;
+  }
+
+  /**
+  */
+  async hangUp(e) {
+    let that = this;
+
+    this.tracks = document.querySelector('#localVideo').srcObject.getTracks();
+    this.tracks.forEach(track => {
+      track.stop();
+    });
+
+    if (that.remoteStream) {
+      that.remoteStream.getTracks().forEach(track => track.stop());
+    }
+
+    if (that.peerConnection) {
+      that.peerConnection.close();
+    }
+
+    document.querySelector('#localVideo').srcObject = null;
+    document.querySelector('#remoteVideo').srcObject = null;
+    document.querySelector('#cameraBtn').disabled = false;
+    document.querySelector('#joinBtn').disabled = true;
+    document.querySelector('#createBtn').disabled = true;
+    document.querySelector('#hangupBtn').disabled = true;
+    document.querySelector('#currentRoom').innerText = '';
+
+    // Delete room on hangup
+    if (that.roomId) {
+      //that.db = firebase.firestore();
+      that.roomRef = that.db.collection('rooms').doc(that.roomId);
+      that.calleeCandidates = await that.roomRef.collection('calleeCandidates').get();
+      that.calleeCandidates.forEach(async candidate => {
+        await candidate.ref.delete();
+      });
+      that.callerCandidates = await that.roomRef.collection('callerCandidates').get();
+      that.callerCandidates.forEach(async candidate => {
+        await candidate.ref.delete();
+      });
+      await that.roomRef.delete();
+    }
+
+    document.location.reload(true);
+  }
+
+  /**
+  */
+  registerPeerConnectionListeners() {
+    let that = this;
+
+    this.peerConnection.addEventListener('icegatheringstatechange', () => {
+      console.log(
+          `ICE gathering state changed: ${that.peerConnection.iceGatheringState}`);
+    });
+
+    this.peerConnection.addEventListener('connectionstatechange', () => {
+      console.log(`Connection state change: ${that.peerConnection.connectionState}`);
+    });
+
+    this.peerConnection.addEventListener('signalingstatechange', () => {
+      console.log(`Signaling state change: ${that.peerConnection.signalingState}`);
+    });
+
+    this.peerConnection.addEventListener('iceconnectionstatechange ', () => {
+      console.log(
+          `ICE connection state change: ${that.peerConnection.iceConnectionState}`);
+    });
+  }
+
+  initMidi () {
+    let that = this;
+
+    WebMidi.enable(function (err) {
+      if (err) {
+        console.log("WebMidi could not be enabled.", err);
+        return;
+      } else {
+        console.log("WebMidi enabled!");
+      }
+
+      // Reacting when a new device becomes available
+      // Will need to update to check if input already exists
+      WebMidi.addListener("connected", function(e) {
+        // that.fillInputs();
+        // that.fillOutputs();
+      });
+
+      // Reacting when a device becomes unavailable
+      WebMidi.addListener("disconnected", function(e) {
+        // that.fillInputs();
+        // that.fillOutputs();
+      });
+
+      that.fillInputs();
+      that.fillOutputs();
+    });
+
+  }
+
+  fillInputs() {
+    let that = this;
+
+    //TODO: Add buffer entry so it has to be selected
+
+    WebMidi.inputs.forEach(input => {
+      let option = document.createElement("option");
+      option.value = input.id;
+      option.textContent = 'MIDI: ' + input.name;
+      that.inputMenu.appendChild(option);
+    });
+
+    // if (that.currentInput) {
+    //   that.inputMenu.value = that.currentInput;
+    // }
+  }
+
+  fillOutputs() {
+    let that = this;
+
+    WebMidi.outputs.forEach(output => {
+      let option = document.createElement("option");
+      option.value = output.id;
+      option.textContent = 'MIDI: ' + output.name;
+      that.outputMenu.appendChild(option);
+    });
+
+    // if (that.currentOutput) {
+    //   that.outputMenu.value = that.currentOutput;
+    // }
+  }
+
+  handleMIDIMessage(message) {
+    console.log(JSON.parse(message));
+    if (this.currentOutput) {
+
+      var command = message.data[0];
+      var note = message.data[1];
+      var velocity = (message.data.length > 2) ? message.data[2] : 0;
+
+      switch (command) {
+          case 144: // noteOn
+              if (velocity > 0) {
+                  this.currentOutput.noteOn(note, velocity);
+              } else {
+                  this.currentOutput.noteOff(note);
+              }
+              break;
+          case 128: // noteOff
+              this.currentOutput.noteOff(note);
+              break;
+      }
+    }
+  }
+
+  sendMIDIMessage(message) {
+    this.localDataChannel.send(JSON.stringify(message));
+  }
+
+  sendAMessage() {
+    this.localDataChannel.send("Hello");
+  }
+
+} // End of VCMIDI Class
+
+window.onload = ()=> {
+  window.app = new VCMIDI();
 }
-
-function registerPeerConnectionListeners() {
-  peerConnection.addEventListener('icegatheringstatechange', () => {
-    console.log(
-        `ICE gathering state changed: ${peerConnection.iceGatheringState}`);
-  });
-
-  peerConnection.addEventListener('connectionstatechange', () => {
-    console.log(`Connection state change: ${peerConnection.connectionState}`);
-  });
-
-  peerConnection.addEventListener('signalingstatechange', () => {
-    console.log(`Signaling state change: ${peerConnection.signalingState}`);
-  });
-
-  peerConnection.addEventListener('iceconnectionstatechange ', () => {
-    console.log(
-        `ICE connection state change: ${peerConnection.iceConnectionState}`);
-  });
-}
-
-init();
