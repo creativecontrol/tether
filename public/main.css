@@ -1,9 +1,23 @@
 body {
-    background: #ECEFF1;
-    color: rgba(0, 0, 0, 0.87);
+    background: #464747;
+    color: rgba(236, 239, 241, 0.87);
     font-family: Roboto, Helvetica, Arial, sans-serif;
+    --mdc-theme-primary: #34abeb;
     margin: 0;
     padding: 0;
+}
+
+.heading {
+  display: flex;
+}
+
+.heading-child {
+  flex: 1;
+  margin: 10px;
+}
+
+.video {
+  display: flex;
 }
 
 #message {
@@ -15,7 +29,7 @@ body {
 }
 
 #message h2 {
-    color: #ffa100;
+    color: #eceff1;
     font-weight: bold;
     font-size: 16px;
     margin: 0 0 8px;
@@ -24,7 +38,7 @@ body {
 #message h1 {
     font-size: 22px;
     font-weight: 300;
-    color: rgba(0, 0, 0, 0.6);
+    color: rgba(236, 239, 241, 0.6);
     margin: 0 0 16px;
 }
 
@@ -50,7 +64,7 @@ body {
 }
 
 #load {
-    color: rgba(0, 0, 0, 0.4);
+    color: rgba(236, 239, 241, 0.4);
     text-align: center;
     font-size: 13px;
 }
@@ -58,7 +72,7 @@ body {
 @media (max-width: 600px) {
     body, #message {
         margin-top: 0;
-        background: white;
+        background: #464747;
         box-shadow: none;
     }
 
@@ -75,8 +89,43 @@ button {
     margin: 0.2em 0.1em;
 }
 
+#copyID {
+  visibility: hidden;
+}
+#currentRoom {
+  visibility: hidden;
+}
+
+#midiInactive {
+  visibility: hidden;
+}
+
 #midiActive {
   visibility: hidden;
+}
+
+#controls {
+  background: #464747;
+  border-radius: 10px 10px 0 0;
+  bottom: 0;
+  position: fixed;
+  visibility: hidden;
+}
+
+#notifications {
+  background: #FFF;
+  bottom: 0;
+  color: #000;
+  height: 25px;
+  left: 50%;
+  margin: 0 auto;
+  padding: 2px;
+  position: fixed;
+  text-align: center;
+  transform: translate(-50%, 0);
+  width: 300px;
+  visibility: hidden;
+
 }
 
 div#videos {
@@ -93,9 +142,11 @@ div#videos > video {
 div#videos > #localVideo {
   width: 320px;
   height: 100%;
+  flex: 0 1 320px;
 }
 
 div#videos > #remoteVideo {
   width: 640px;
   height: 100%;
+  flex: 1;
 }

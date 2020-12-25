@@ -20,7 +20,17 @@
     <link rel="stylesheet" type="text/css" href="main.css">
 </head>
 <body>
-<h1>Welcome to VCMIDI</h1>
+<div class="heading">
+  <div class="heading-child">
+    <h1>Welcome to VCMIDI</h1>
+  </div>
+  <div class="heading-child">
+    <button class="mdc-icon-button" id="copyID">
+      <i class="material-icons mdc-button__icon" aria-hidden="true">content_copy</i>
+    </button>
+    <span id="currentRoom"></span>
+  </div>
+</div>
 <div id="buttons">
     <button class="mdc-button mdc-button--raised" id="cameraBtn">
         <i class="material-icons mdc-button__icon" aria-hidden="true">perm_camera_mic</i>
@@ -39,9 +49,6 @@
         <span class="mdc-button__label">Hangup</span>
     </button>
 </div>
-<div>
-    <span id="currentRoom"></span>
-</div>
 <div id="midiInactive">
     <button class="mdc-button mdc-button--raised" id="activateMidi">
       <i class="material-icons mdc-button__icon" aria-hidden="true">piano</i>
@@ -50,6 +57,13 @@
 </div>
 
 <div id="midiActive">
+  <div id="midiRefresh">
+    <button class="mdc-button mdc-button--raised" id="midiRefreshBtn">
+        <i class="material-icons mdc-button__icon" aria-hidden="true">refresh</i>
+        <span class="mdc-button__label">Refresh MIDI Devices</span>
+    </button>
+  </div>
+
   <div id="midiInput">
     <label for="midiInSelect">MIDI Input</label>
     <select name="MIDI Input" id="midiInSelect"></select>
@@ -59,14 +73,15 @@
     <label for="midiOutSelect">MIDI Output</label>
     <select name="MIDI Output" id="midiOutSelect"></select>
   </div>
+
 </div>
 
 <!-- <div>
   <button id="sendMsg">Send</button>
 </div> -->
-<div id="videos">
-    <video id="remoteVideo" autoplay playsinline></video>
-    <video id="localVideo" muted autoplay playsinline></video>
+<div id="videos" class="video">
+    <video id="remoteVideo" class="video-child" autoplay playsinline></video>
+    <video id="localVideo" class="video-child" muted autoplay playsinline></video>
 </div>
 <div class="mdc-dialog"
      id="room-dialog"
@@ -79,9 +94,8 @@
             <h2 class="mdc-dialog__title" id="my-dialog-title">Join room</h2>
             <div class="mdc-dialog__content" id="my-dialog-content">
                 Enter ID for room to join:
-                <div class="mdc-text-field">
-                    <input type="text" id="room-id" class="mdc-text-field__input">
-                    <label class="mdc-floating-label" for="my-text-field">Room ID</label>
+                <div class="mdc-text-field mdc-text-field--no-label">
+                    <input type="text" id="room-id" class="mdc-text-field__input" placeholder="Room ID">
                     <div class="mdc-line-ripple"></div>
                 </div>
             </div>
@@ -98,6 +112,20 @@
     </div>
     <div class="mdc-dialog__scrim"></div>
 </div>
+
+<div id="controls">
+  <button class="mdc-icon-button" id="microphone">
+    <i class="material-icons mdc-button__icon" aria-hidden="true">mic</i>
+  </button>
+  <button class="mdc-icon-button" id="videoFeed">
+    <i class="material-icons mdc-button__icon" aria-hidden="true">videocam</i>
+  </button>
+
+</div>
+
+<div id="notifications">
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

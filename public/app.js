@@ -29,10 +29,13 @@ class VCMIDI {
     this.activateMidiAction = document.getElementById("activateMidi");
     this.midiInitButton = document.getElementById("midiInactive");
     this.midiUI = document.getElementById("midiActive");
+    this.midiRefresh = document.getElementById("midiRefresh");
     this.inputMenu = document.getElementById("midiInSelect");
     this.outputMenu = document.getElementById("midiOutSelect");
     this.currentInput = null;
     this.curretOutput = null;
+
+    this.notify = document.getElementById("notifications");
 
     this.init();
 
@@ -44,6 +47,7 @@ class VCMIDI {
     document.querySelector('#hangupBtn').onclick = ()=>{this.hangUp();};
     document.querySelector('#createBtn').onclick = ()=>{this.createRoom();};
     document.querySelector('#joinBtn').onclick = ()=>{this.joinRoom();};
+    document.querySelector('#copyID').onclick = ()=>{this.copyID()};
     // document.querySelector('#sendMsg').onclick = ()=>{this.sendAMessage();};
     this.roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog'));
 
@@ -54,20 +58,28 @@ class VCMIDI {
       that.initMidi();
     }
 
+    this.midiRefresh.onclick = () => {
+      this.refreshMIDIDevices();
+    }
+
     this.inputMenu.onchange = () => {
         console.log('changing MIDI input');
         if (that.currentInput) {
           that.currentInput.removeListener();
         }
         try {
-          that.currentInput = WebMidi.getInputById(that.inputMenu.value);
-          console.log(that.currentInput);
+          if(that.inputMenu.value != null) {
+            that.currentInput = WebMidi.getInputById(that.inputMenu.value);
+            console.log(that.currentInput);
 
-          that.currentInput.addListener('midimessage', 'all', (midiEvent) => {
-            console.log("MIDI message");
-            // console.log(midiEvent);
-            that.sendMIDIMessage(midiEvent);
-          })
+            if(that.currentInput) {
+              that.currentInput.addListener('midimessage', 'all', (midiEvent) => {
+                console.log("MIDI message");
+                // console.log(midiEvent);
+                that.sendMIDIMessage(midiEvent);
+              })
+            }
+          }
         } catch (error) {
           console.error(error);
         }
@@ -84,7 +96,8 @@ class VCMIDI {
     document.querySelector('#createBtn').disabled = true;
     document.querySelector('#joinBtn').disabled = true;
     this.db = firebase.firestore();
-    this.roomRef = await this.db.collection('rooms').doc();
+    // this.roomRef = await this.db.collection('rooms').doc();
+    this.roomRef = await this.db.collection('rooms').doc(this.generateId());
 
     console.log('Create PeerConnection with configuration: ', that.configuration);
     this.peerConnection = new RTCPeerConnection(that.configuration);
@@ -140,6 +153,9 @@ class VCMIDI {
     console.log(`New room created with SDP offer. Room ID: ${this.roomRef.id}`);
     document.querySelector(
         '#currentRoom').innerText = `Current room is ${this.roomRef.id} - You are the caller!`;
+    document.querySelector('#copyID').style.visibility = "visible";
+    document.querySelector('#currentRoom').style.visibility = "visible";
+    this.midiInitButton.style.visibility = "visible";
     // Code for creating a room above
 
     this.peerConnection.addEventListener('track', event => {
@@ -174,6 +190,31 @@ class VCMIDI {
     // Listen for remote ICE candidates above
   }
 
+  generateId() {
+    let length = 6;
+    var result = '';
+    var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for ( var i = 0; i < length; i++ ) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  }
+
+  /**
+  */
+  copyID() {
+    navigator.clipboard.writeText(this.roomRef.id);
+    console.log('copied room ID');
+
+    this.notify.innerHTML = 'copied room ID !';
+    this.notify.style.visibility = "visible";
+
+    setTimeout(()=>{
+      this.notify.innerHTML = '';
+      this.notify.style.visibility = "hidden";
+    }, 2000);
+  }
+
   /**
   */
   joinRoom() {
@@ -187,6 +228,8 @@ class VCMIDI {
           console.log('Join room: ', that.roomId);
           document.querySelector(
               '#currentRoom').innerText = `Current room is ${that.roomId} - You are the callee!`;
+          document.querySelector('#currentRoom').style.visibility = "visible";
+          that.midiInitButton.style.visibility = "visible";
           await that.joinRoomById(that.roomId);
         }, {once: true});
     this.roomDialog.open();
@@ -391,6 +434,8 @@ class VCMIDI {
     let that = this;
 
     //TODO: Add buffer entry so it has to be selected
+    this.inputMenu.innerHTML = "";
+    this.inputMenu.appendChild(this.makeNullOption());
 
     WebMidi.inputs.forEach(input => {
       let option = document.createElement("option");
@@ -406,7 +451,8 @@ class VCMIDI {
 
   fillOutputs() {
     let that = this;
-
+    this.outputMenu.innerHTML = "";
+    this.outputMenu.appendChild(this.makeNullOption());
     WebMidi.outputs.forEach(output => {
       let option = document.createElement("option");
       option.value = output.id;
@@ -419,31 +465,53 @@ class VCMIDI {
     // }
   }
 
-  handleMIDIMessage(message) {
-    console.log(JSON.parse(message));
+  makeNullOption() {
+    let option = document.createElement("option");
+    option.value = null;
+    option.textContent = '--Select one--';
+    return option;
+  }
+
+  refreshMIDIDevices() {
+    this.fillInputs();
+    // Select the one currently selected
+    this.fillOutputs();
+  }
+
+  handleMIDIMessage(midiMessage) {
+    let that = this;
+    let message = JSON.parse(midiMessage);
+    console.log(message);
     if (this.currentOutput) {
 
-      var command = message.data[0];
-      var note = message.data[1];
-      var velocity = (message.data.length > 2) ? message.data[2] : 0;
+      let command = message.data[0];
+      let note = message.data[1];
+      let channel = command;
+      let velocity = (message.data[2] !== undefined) ? message.data[2] : 0;
 
-      switch (command) {
-          case 144: // noteOn
-              if (velocity > 0) {
-                  this.currentOutput.noteOn(note, velocity);
-              } else {
-                  this.currentOutput.noteOff(note);
-              }
-              break;
-          case 128: // noteOff
-              this.currentOutput.noteOff(note);
-              break;
+      let noteOn = 144;
+      let noteOff = 128;
+      let noteRange = 16;
+
+      if (command >= noteOn && command < noteOn+noteRange) {
+        console.log('sending note on');
+        let channel = command - noteOn + 1;
+        if (velocity > 0) {
+            that.currentOutput.playNote(note, channel, {velocity: velocity});
+        } else {
+            that.currentOutput.stopNote(note, channel);
+        }
+      } else if(command >= noteOff && command < noteOff+noteRange) {
+          let channel = command - noteOff;
+          that.currentOutput.stopNote(note, channel);
       }
     }
   }
 
   sendMIDIMessage(message) {
-    this.localDataChannel.send(JSON.stringify(message));
+    if(this.dataChannelIsOpen) {
+      this.localDataChannel.send(JSON.stringify(message));
+    }
   }
 
   sendAMessage() {
