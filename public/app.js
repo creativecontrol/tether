@@ -36,6 +36,11 @@ class VCMIDI {
     this.curretOutput = null;
 
     this.notify = document.getElementById("notifications");
+    // this.micControl = document.getElementById("microphone");
+    // this.videoControl = document.getElementById("videoFeed");
+
+    this.micMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("microphone"));
+    this.videoMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("videoFeed"));
 
     this.init();
 
@@ -50,6 +55,14 @@ class VCMIDI {
     document.querySelector('#copyID').onclick = ()=>{this.copyID()};
     // document.querySelector('#sendMsg').onclick = ()=>{this.sendAMessage();};
     this.roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog'));
+
+    this.micMuteToggle.listen('click', () => {
+      this.micControlAction(this.micMuteToggle.on);
+    });
+
+    this.videoMuteToggle.listen('click', () => {
+      this.videoControlAction(this.videoMuteToggle.on);
+    });
 
     this.activateMidiAction.onclick = () => {
       that.midiInitButton.style.visibility = "hidden";
@@ -84,10 +97,19 @@ class VCMIDI {
           console.error(error);
         }
     };
+
     this.outputMenu.onchange = ()=> {
       that.currentOutput = WebMidi.getOutputById(that.outputMenu.value);
       console.log(that.currentOutput);
-    }
+    };
+  }
+
+  micControlAction(status) {
+    this.localStream.getAudioTracks()[0].enabled = status;
+  }
+
+  videoControlAction(status) {
+    this.localStream.getVideoTracks()[0].enabled = status;
   }
 
   async createRoom() {
@@ -322,6 +344,7 @@ class VCMIDI {
         {video: true, audio: true});
     document.querySelector('#localVideo').srcObject = this.stream;
     this.localStream = this.stream;
+    this.showControls();
     this.remoteStream = new MediaStream();
     document.querySelector('#remoteVideo').srcObject = this.remoteStream;
 
@@ -330,6 +353,14 @@ class VCMIDI {
     document.querySelector('#joinBtn').disabled = false;
     document.querySelector('#createBtn').disabled = false;
     document.querySelector('#hangupBtn').disabled = false;
+  }
+
+  showControls() {
+    document.querySelector('#controls').style.visibility = "visible";
+  }
+
+  hideControls() {
+    document.querySelector('#controls').style.visibility = "hidden";
   }
 
   /**
@@ -341,6 +372,8 @@ class VCMIDI {
     this.tracks.forEach(track => {
       track.stop();
     });
+
+    this.hideControls();
 
     if (that.remoteStream) {
       that.remoteStream.getTracks().forEach(track => track.stop());
