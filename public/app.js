@@ -41,6 +41,7 @@ class VCMIDI {
 
     this.micMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("microphone"));
     this.videoMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("videoFeed"));
+    this.audioMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("audioIn"));
 
     this.init();
 
