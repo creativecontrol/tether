@@ -1,4 +1,9 @@
-class VCMIDI {
+/**
+  TODO:
+  - Add aux input capability with stereo audio (channelCount), no AGC (autoGainControl),noise suppression (noiseSuppression) and AEC (echoCancellation)
+  - Add settings page to choose microphone input for mic and audio input for aux
+*/
+class Tether {
   constructor() {
     mdc.ripple.MDCRipple.attachTo(document.querySelector('.mdc-button'));
 
@@ -555,5 +560,5 @@ class VCMIDI {
 } // End of VCMIDI Class
 
 window.onload = ()=> {
-  window.app = new VCMIDI();
+  window.app = new Tether();
 }
