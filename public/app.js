@@ -1,7 +1,8 @@
 /**
   TODO:
   - Add aux input capability with stereo audio (channelCount), no AGC (autoGainControl),noise suppression (noiseSuppression) and AEC (echoCancellation)
-  - Add settings page to choose microphone input for mic and audio input for aux
+  - Add settings page to choose microphone input for mic and audio input for aux https://webrtc.github.io/samples/src/content/devices/input-output/
+  - Settings should also allow for separate outputs for mic and audio streams
 */
 class Tether {
   constructor() {
@@ -31,6 +32,9 @@ class Tether {
     this.roomDialog = null;
     this.roomId = null;
 
+    this.settingsDialog = null;
+    this.settingsAction = document.getElementById("settingsButton");
+
     this.activateMidiAction = document.getElementById("activateMidi");
     this.midiInitButton = document.getElementById("midiInactive");
     this.midiUI = document.getElementById("midiActive");
@@ -41,8 +45,6 @@ class Tether {
     this.curretOutput = null;
 
     this.notify = document.getElementById("notifications");
-    // this.micControl = document.getElementById("microphone");
-    // this.videoControl = document.getElementById("videoFeed");
 
     this.micMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("microphone"));
     this.videoMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("videoFeed"));
@@ -61,6 +63,12 @@ class Tether {
     document.querySelector('#copyID').onclick = ()=>{this.copyID()};
     // document.querySelector('#sendMsg').onclick = ()=>{this.sendAMessage();};
     this.roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog'));
+
+    this.settingsDialog = new mdc.dialog.MDCDialog(document.querySelector('#settingsDialog'));
+    this.settingsAction.onclick = () => {
+      this.settingsDialog.open();
+
+    }
 
     this.micMuteToggle.listen('click', () => {
       this.micControlAction(this.micMuteToggle.on);
@@ -463,13 +471,13 @@ class Tether {
         // that.fillOutputs();
       });
 
-      that.fillInputs();
-      that.fillOutputs();
+      that.fillMIDIInputs();
+      that.fillMIDIOutputs();
     });
 
   }
 
-  fillInputs() {
+  fillMIDIInputs() {
     let that = this;
 
     //TODO: Add buffer entry so it has to be selected
@@ -488,7 +496,7 @@ class Tether {
     // }
   }
 
-  fillOutputs() {
+  fillMIDIOutputs() {
     let that = this;
     this.outputMenu.innerHTML = "";
     this.outputMenu.appendChild(this.makeNullOption());
@@ -512,9 +520,9 @@ class Tether {
   }
 
   refreshMIDIDevices() {
-    this.fillInputs();
+    this.fillMIDIInputs();
     // Select the one currently selected
-    this.fillOutputs();
+    this.fillMIDIOutputs();
   }
 
   handleMIDIMessage(midiMessage) {

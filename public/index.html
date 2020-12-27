@@ -24,8 +24,8 @@
 </head>
 <body>
 <div class="heading">
-  <div class="heading-child">
-    <h1>Welcome to Tether</h1>
+  <div class="heading-child" id="title">
+    <img src="/images/tether_title.png">
   </div>
   <div class="heading-child">
     <button class="mdc-icon-button" id="copyID">
@@ -123,14 +123,38 @@
     <i class="material-icons mdc-icon-button__icon">videocam_off</i>
   </button>
   <button class="mdc-icon-button mdc-icon-button--on" aria-pressed="true" id="audioIn">
-    <!-- <img src="/icons/aux_input.svg" class="mdc-icon-button__icon mdc-icon-button__icon--on"/>
-    <img src="/icons/aux_input_off.svg" class="mdc-icon-button__icon"/> -->
-    <!-- <i class="material-icons mdc-icon-button__icon mdc-icon-button__icon--on">hearing</i>
-    <i class="material-icons mdc-icon-button__icon">hearing_disabled</i> -->
     <i class="material-icons mdc-icon-button__icon mdc-icon-button__icon--on">input</i>
     <img src="/icons/input_off.svg" class="mdc-icon-button__icon"/>
   </button>
+</div>
 
+<div id="settings">
+  <button class="mdc-icon-button" aria-pressed="true" id="settingsButton">
+    <i class="material-icons mdc-icon-button__icon">settings</i>
+  </button>
+</div>
+
+<div  class="mdc-dialog"
+      role="alertdialog"
+      id="settingsDialog">
+      <div class="mdc-dialog__container">
+          <div class="mdc-dialog__surface">
+              <h2 class="mdc-dialog__title" id="my-dialog-title">Settings</h2>
+              <div class="mdc-dialog__content">
+              </div>
+
+            <footer class="mdc-dialog__actions">
+                <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="no">
+                    <span class="mdc-button__label">Cancel</span>
+                </button>
+                <button id="confirmJoinBtn" type="button" class="mdc-button mdc-dialog__button"
+                        data-mdc-dialog-action="yes">
+                    <span class="mdc-button__label">Save & Close</span>
+                </button>
+            </footer>
+          </div>
+      </div>
+      <div class="mdc-dialog__scrim"></div>
 </div>
 
 <div id="notifications">
