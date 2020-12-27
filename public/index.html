@@ -4,8 +4,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tether VC</title>
+    <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/icons/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/icons/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/icons/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/icons/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192"  href="/icons/android-icon-192x192.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/icons/favicon-96x96.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <link rel="manifest" href="/icons/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="/icons/ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
 
     <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
     <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -25,6 +40,7 @@
 <body>
 <div class="heading">
   <div class="heading-child" id="title">
+    <img src="/images/tether_logo_lt_deep.png" id="logo">
     <img src="/images/tether_title.png">
   </div>
   <div class="heading-child">
@@ -141,15 +157,26 @@
           <div class="mdc-dialog__surface">
               <h2 class="mdc-dialog__title" id="my-dialog-title">Settings</h2>
               <div class="mdc-dialog__content">
+                <div class="select">
+                    <label for="micSource">Mic input source: </label><select id="micSource"></select>
+                </div>
+                <div class="select">
+                    <label for="auxSource">Audio input source: </label><select id="auxSource"></select>
+                </div>
+
+                <div class="select">
+                    <label for="audioOutput">Audio output destination: </label><select id="audioOutput"></select>
+                </div>
+
+                <div class="select">
+                    <label for="videoSource">Video source: </label><select id="videoSource"></select>
+                </div>
               </div>
 
             <footer class="mdc-dialog__actions">
-                <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="no">
-                    <span class="mdc-button__label">Cancel</span>
-                </button>
                 <button id="confirmJoinBtn" type="button" class="mdc-button mdc-dialog__button"
                         data-mdc-dialog-action="yes">
-                    <span class="mdc-button__label">Save & Close</span>
+                    <span class="mdc-button__label">Close</span>
                 </button>
             </footer>
           </div>

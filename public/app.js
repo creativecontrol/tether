@@ -1,8 +1,9 @@
 /**
   TODO:
   - Add aux input capability with stereo audio (channelCount), no AGC (autoGainControl),noise suppression (noiseSuppression) and AEC (echoCancellation)
-  - Add settings page to choose microphone input for mic and audio input for aux https://webrtc.github.io/samples/src/content/devices/input-output/
-  - Settings should also allow for separate outputs for mic and audio streams
+  - Settings should also allow for separate outputs for mic and audio streams (if possible)
+
+  - Move MIDI handling to a new class/file for simplicity
 */
 class Tether {
   constructor() {
@@ -24,6 +25,7 @@ class Tether {
     this.roomRef = null;
 
     this.peerConnection = null;
+    this.localVideo = document.querySelector('#localVideo');
     this.localStream = null;
     this.remoteStream = null;
     this.localDataChannel = null;
@@ -34,15 +36,20 @@ class Tether {
 
     this.settingsDialog = null;
     this.settingsAction = document.getElementById("settingsButton");
+    this.auxInputSelect = document.querySelector('select#auxSource');
+    this.micInputSelect = document.querySelector('select#micSource');
+    this.audioOutputSelect = document.querySelector('select#audioOutput');
+    this.videoSelect = document.querySelector('select#videoSource');
+    this.selectors = [this.auxInputSelect, this.audioOutputSelect, this.micInputSelect, this.videoSelect];
 
     this.activateMidiAction = document.getElementById("activateMidi");
     this.midiInitButton = document.getElementById("midiInactive");
     this.midiUI = document.getElementById("midiActive");
     this.midiRefresh = document.getElementById("midiRefresh");
-    this.inputMenu = document.getElementById("midiInSelect");
-    this.outputMenu = document.getElementById("midiOutSelect");
-    this.currentInput = null;
-    this.curretOutput = null;
+    this.midiInputMenu = document.getElementById("midiInSelect");
+    this.midiOutputMenu = document.getElementById("midiOutSelect");
+    this.currentMIDIInput = null;
+    this.curretMIDIOutput = null;
 
     this.notify = document.getElementById("notifications");
 
@@ -56,6 +63,7 @@ class Tether {
 
   init() {
     let that = this;
+    navigator.mediaDevices.enumerateDevices().then((deviceInfo) => {this.gotDevices(deviceInfo)}).catch((e) => {that.handleGetMediaError(e)});
     document.querySelector('#cameraBtn').onclick = ()=>{this.openUserMedia();};
     document.querySelector('#hangupBtn').onclick = ()=>{this.hangUp();};
     document.querySelector('#createBtn').onclick = ()=>{this.createRoom();};
@@ -69,6 +77,11 @@ class Tether {
       this.settingsDialog.open();
 
     }
+
+    this.micInputSelect.onchange = () => {this.startMedia()};
+    this.auxInputSelect.onchange = () => {this.startMedia()};
+    this.audioOutputSelect.onchange = () => {this.changeAudioDestination()};
+    this.videoSelect.onchange = () => {this.startMedia()};
 
     this.micMuteToggle.listen('click', () => {
       this.micControlAction(this.micMuteToggle.on);
@@ -89,18 +102,18 @@ class Tether {
       this.refreshMIDIDevices();
     }
 
-    this.inputMenu.onchange = () => {
+    this.midiInputMenu.onchange = () => {
         console.log('changing MIDI input');
-        if (that.currentInput) {
-          that.currentInput.removeListener();
+        if (that.currentMIDIInput) {
+          that.currentMIDIInput.removeListener();
         }
         try {
-          if(that.inputMenu.value != null) {
-            that.currentInput = WebMidi.getInputById(that.inputMenu.value);
-            console.log(that.currentInput);
+          if(that.midiInputMenu.value != null) {
+            that.currentMIDIInput = WebMidi.getInputById(that.midiInputMenu.value);
+            console.log(that.currentMIDIInput);
 
-            if(that.currentInput) {
-              that.currentInput.addListener('midimessage', 'all', (midiEvent) => {
+            if(that.currentMIDIInput) {
+              that.currentMIDIInput.addListener('midimessage', 'all', (midiEvent) => {
                 console.log("MIDI message");
                 // console.log(midiEvent);
                 that.sendMIDIMessage(midiEvent);
@@ -112,9 +125,9 @@ class Tether {
         }
     };
 
-    this.outputMenu.onchange = ()=> {
-      that.currentOutput = WebMidi.getOutputById(that.outputMenu.value);
-      console.log(that.currentOutput);
+    this.midiOutputMenu.onchange = ()=> {
+      that.currentMIDIOutput = WebMidi.getOutputById(that.midiOutputMenu.value);
+      console.log(that.currentMIDIOutput);
     };
   }
 
@@ -351,29 +364,58 @@ class Tether {
 
   /**
   */
-  async openUserMedia(e) {
+  openUserMedia(e) {
     let that = this;
 
-    this.stream = await navigator.mediaDevices.getUserMedia(
-        {video: true, audio: true});
-    document.querySelector('#localVideo').srcObject = this.stream;
-    this.localStream = this.stream;
-    this.showControls();
+    this.startMedia();
+    // this.localVideo.srcObject = this.stream;
+    // this.localStream = this.stream;
+    this.showCallControls();
     this.remoteStream = new MediaStream();
     document.querySelector('#remoteVideo').srcObject = this.remoteStream;
 
-    console.log('Stream:', document.querySelector('#localVideo').srcObject);
     document.querySelector('#cameraBtn').disabled = true;
     document.querySelector('#joinBtn').disabled = false;
     document.querySelector('#createBtn').disabled = false;
     document.querySelector('#hangupBtn').disabled = false;
   }
 
-  showControls() {
+  /**
+    Based on the selections of the user, update and reattach the media elements as needed.
+    This might happen before or during the call.
+  */
+  async startMedia() {
+    let that = this;
+
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => {
+        track.stop();
+      });
+    }
+    let micSource = this.micInputSelect.value;
+    let videoSource = this.videoSelect.value;
+    let constraints = {
+      audio: {deviceId: micSource ? {exact: micSource} : undefined},
+      video: {deviceId: videoSource ? {exact: videoSource} : undefined}
+    };
+    this.stream = await navigator.mediaDevices.getUserMedia(constraints)
+      .then((stream) => {
+        return that.gotStream(stream);
+      })
+      .then((deviceInfo) => {
+        console.log('chain device info:', deviceInfo);
+        return that.gotDevices(deviceInfo);
+      })
+      .catch((e) => {
+        that.handleGetMediaError(e);
+      });
+  }
+
+  showCallControls() {
     document.querySelector('#controls').style.visibility = "visible";
   }
 
-  hideControls() {
+  hideCallControls() {
     document.querySelector('#controls').style.visibility = "hidden";
   }
 
@@ -387,7 +429,7 @@ class Tether {
       track.stop();
     });
 
-    this.hideControls();
+    this.hideCallControls();
 
     if (that.remoteStream) {
       that.remoteStream.getTracks().forEach(track => track.stop());
@@ -447,6 +489,83 @@ class Tether {
     });
   }
 
+  gotStream(stream) {
+    this.stream = stream; // make stream available to console
+    this.localVideo.srcObject = this.stream;
+    this.localStream = this.stream;
+    // Refresh button list in case labels have become available
+
+    return navigator.mediaDevices.enumerateDevices();
+  }
+
+  gotDevices(deviceInfos) {
+    console.log('devices: ', deviceInfos);
+    let that = this;
+    // Handles being called several times to update labels. Preserve values.
+    console.log(this.selectors);
+    let values = this.selectors.map(select => select.value);
+    this.selectors.forEach(select => {
+      while (select.firstChild) {
+        select.removeChild(select.firstChild);
+      }
+    });
+    for (let i = 0; i !== deviceInfos.length; ++i) {
+      const deviceInfo = deviceInfos[i];
+      const option = document.createElement('option');
+      option.value = deviceInfo.deviceId;
+      if (deviceInfo.kind === 'audioinput') {
+        option.text = deviceInfo.label || `audio input ${audioInputSelect.length + 1}`;
+        that.micInputSelect.appendChild(option);
+        let option2 = document.createElement('option');
+        option2.value = deviceInfo.deviceId;
+        option2.text = deviceInfo.label || `audio input ${audioInputSelect.length + 1}`;
+        that.auxInputSelect.appendChild(option2);
+      } else if (deviceInfo.kind === 'audiooutput') {
+        option.text = deviceInfo.label || `speaker ${audioOutputSelect.length + 1}`;
+        that.audioOutputSelect.appendChild(option);
+      } else if (deviceInfo.kind === 'videoinput') {
+        option.text = deviceInfo.label || `camera ${videoSelect.length + 1}`;
+        that.videoSelect.appendChild(option);
+      } else {
+        console.log('Some other kind of source/device: ', deviceInfo);
+      }
+    }
+    this.selectors.forEach((select, selectorIndex) => {
+      if (Array.prototype.slice.call(select.childNodes).some(n => n.value === values[selectorIndex])) {
+        select.value = values[selectorIndex];
+      }
+    });
+  }
+
+  handleGetMediaError(error) {
+    console.log('navigator.MediaDevices.getUserMedia error: ', error.message, error.name);
+  }
+
+  attachSinkId(element, sinkId) {
+    if (typeof element.sinkId !== 'undefined') {
+      element.setSinkId(sinkId)
+          .then(() => {
+            console.log(`Success, audio output device attached: ${sinkId}`);
+          })
+          .catch(error => {
+            let errorMessage = error;
+            if (error.name === 'SecurityError') {
+              errorMessage = `You need to use HTTPS for selecting audio output device: ${error}`;
+            }
+            console.error(errorMessage);
+            // Jump back to first output device in the list as it's the default.
+            this.audioOutputSelect.selectedIndex = 0;
+          });
+    } else {
+      console.warn('Browser does not support output device selection.');
+    }
+  }
+
+  changeAudioDestination() {
+    const audioDestination = this.audioOutputSelect.value;
+    attachSinkId(that.localVideo, audioDestination);
+  }
+
   initMidi () {
     let that = this;
 
@@ -481,14 +600,14 @@ class Tether {
     let that = this;
 
     //TODO: Add buffer entry so it has to be selected
-    this.inputMenu.innerHTML = "";
-    this.inputMenu.appendChild(this.makeNullOption());
+    this.midiInputMenu.innerHTML = "";
+    this.midiInputMenu.appendChild(this.makeNullOption());
 
     WebMidi.inputs.forEach(input => {
       let option = document.createElement("option");
       option.value = input.id;
       option.textContent = 'MIDI: ' + input.name;
-      that.inputMenu.appendChild(option);
+      that.midiInputMenu.appendChild(option);
     });
 
     // if (that.currentInput) {
@@ -498,13 +617,14 @@ class Tether {
 
   fillMIDIOutputs() {
     let that = this;
-    this.outputMenu.innerHTML = "";
-    this.outputMenu.appendChild(this.makeNullOption());
+    this.midiOutputMenu.innerHTML = "";
+    this.midiOutputMenu.appendChild(this.makeNullOption());
+
     WebMidi.outputs.forEach(output => {
       let option = document.createElement("option");
       option.value = output.id;
       option.textContent = 'MIDI: ' + output.name;
-      that.outputMenu.appendChild(option);
+      that.midiOutputMenu.appendChild(option);
     });
 
     // if (that.currentOutput) {
@@ -529,7 +649,7 @@ class Tether {
     let that = this;
     let message = JSON.parse(midiMessage);
     console.log(message);
-    if (this.currentOutput) {
+    if (this.currentMIDIOutput) {
 
       let command = message.data[0];
       let note = message.data[1];
@@ -544,13 +664,13 @@ class Tether {
         console.log('sending note on');
         let channel = command - noteOn + 1;
         if (velocity > 0) {
-            that.currentOutput.playNote(note, channel, {velocity: velocity});
+            that.currentMIDIOutput.playNote(note, channel, {velocity: velocity});
         } else {
-            that.currentOutput.stopNote(note, channel);
+            that.currentMIDIOutput.stopNote(note, channel);
         }
       } else if(command >= noteOff && command < noteOff+noteRange) {
           let channel = command - noteOff;
-          that.currentOutput.stopNote(note, channel);
+          that.currentMIDIOutput.stopNote(note, channel);
       }
     }
   }
@@ -565,7 +685,7 @@ class Tether {
     this.localDataChannel.send("Hello");
   }
 
-} // End of VCMIDI Class
+} // End of Tensor Class
 
 window.onload = ()=> {
   window.app = new Tether();
