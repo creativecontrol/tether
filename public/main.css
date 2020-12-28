@@ -4,6 +4,7 @@ body {
     font-family: Roboto, Helvetica, Arial, sans-serif;
     --mdc-theme-primary: #34abeb;
     margin: 0;
+    overflow: hidden;
     padding: 0;
 }
 
@@ -106,7 +107,7 @@ button {
 }
 
 #midiActive {
-  visibility: hidden;
+  display: none;
 }
 
 #controls {
@@ -156,10 +157,12 @@ div#videos > #localVideo {
   width: 320px;
   height: 100%;
   flex: 0 1 320px;
+  visibility: hidden;
 }
 
 div#videos > #remoteVideo {
   width: 640px;
   height: 100%;
   flex: 1;
+  visibility: hidden;
 }

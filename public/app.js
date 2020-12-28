@@ -1,6 +1,7 @@
 /**
   TODO:
-  - Add aux input capability with stereo audio (channelCount), no AGC (autoGainControl),noise suppression (noiseSuppression) and AEC (echoCancellation)
+  - Add aux input capability https://blog.mozilla.org/webrtc/channelcount-microphone-constraint/
+  with stereo audio (channelCount), no AGC (autoGainControl),noise suppression (noiseSuppression) and AEC (echoCancellation)
   - Settings should also allow for separate outputs for mic and audio streams (if possible)
 
   - Move MIDI handling to a new class/file for simplicity
@@ -63,6 +64,18 @@ class Tether {
 
   init() {
     let that = this;
+
+    firebase.auth().signInAnonymously()
+      .then(() => {
+        that.db = firebase.firestore();
+      })
+      .catch((error) => {
+        var errorCode = error.code;
+        var errorMessage = error.message;
+        // ...
+      });
+
+
     navigator.mediaDevices.enumerateDevices().then((deviceInfo) => {this.gotDevices(deviceInfo)}).catch((e) => {that.handleGetMediaError(e)});
     document.querySelector('#cameraBtn').onclick = ()=>{this.openUserMedia();};
     document.querySelector('#hangupBtn').onclick = ()=>{this.hangUp();};
@@ -92,8 +105,8 @@ class Tether {
     });
 
     this.activateMidiAction.onclick = () => {
-      that.midiInitButton.style.visibility = "hidden";
-      that.midiUI.style.visibility = "visible";
+      that.hideMIDIInit();
+      that.showMIDISelect();
       // Tone.context.resume();
       that.initMidi();
     }
@@ -144,8 +157,7 @@ class Tether {
 
     document.querySelector('#createBtn').disabled = true;
     document.querySelector('#joinBtn').disabled = true;
-    this.db = firebase.firestore();
-    // this.roomRef = await this.db.collection('rooms').doc();
+
     this.roomRef = await this.db.collection('rooms').doc(this.generateId());
 
     console.log('Create PeerConnection with configuration: ', that.configuration);
@@ -204,7 +216,7 @@ class Tether {
         '#currentRoom').innerText = `Current room is ${this.roomRef.id} - You are the caller!`;
     document.querySelector('#copyID').style.visibility = "visible";
     document.querySelector('#currentRoom').style.visibility = "visible";
-    this.midiInitButton.style.visibility = "visible";
+    this.showMIDIInit();
     // Code for creating a room above
 
     this.peerConnection.addEventListener('track', event => {
@@ -278,7 +290,7 @@ class Tether {
           document.querySelector(
               '#currentRoom').innerText = `Current room is ${that.roomId} - You are the callee!`;
           document.querySelector('#currentRoom').style.visibility = "visible";
-          that.midiInitButton.style.visibility = "visible";
+          that.showMIDIInit();
           await that.joinRoomById(that.roomId);
         }, {once: true});
     this.roomDialog.open();
@@ -320,6 +332,7 @@ class Tether {
           console.log('Add a track to the remoteStream:', track);
           that.remoteStream.addTrack(track);
         });
+        that.showRemoteVideo();
       });
 
       // Handle MIDI over the DataChannel
@@ -370,6 +383,7 @@ class Tether {
     this.startMedia();
     // this.localVideo.srcObject = this.stream;
     // this.localStream = this.stream;
+    this.showLocalVideo();
     this.showCallControls();
     this.remoteStream = new MediaStream();
     document.querySelector('#remoteVideo').srcObject = this.remoteStream;
@@ -392,6 +406,7 @@ class Tether {
         track.stop();
       });
     }
+    let auxSource = this.auxInputSelect.value;
     let micSource = this.micInputSelect.value;
     let videoSource = this.videoSelect.value;
     let constraints = {
@@ -411,12 +426,40 @@ class Tether {
       });
   }
 
+  showLocalVideo() {
+    document.querySelector('#localVideo').style.visibility = "visible";
+  }
+  hideLocalVideo() {
+    document.querySelector('#localVideo').style.visibility = "hidden";
+  }
+
+  showRemoteVideo() {
+    document.querySelector('#remoteVideo').style.visibility = "visible";
+  }
+  hideRemoteVideo() {
+    document.querySelector('#remoteVideo').style.visibility = "hidden";
+  }
+
   showCallControls() {
     document.querySelector('#controls').style.visibility = "visible";
   }
-
   hideCallControls() {
     document.querySelector('#controls').style.visibility = "hidden";
+  }
+
+  showMIDIInit() {
+    this.midiInitButton.style.display = "block";
+    this.midiInitButton.style.visibility = "visible";
+  }
+  hideMIDIInit() {
+    this.midiInitButton.style.display = "none";
+  }
+
+  showMIDISelect() {
+    this.midiUI.style.display = "block";
+  }
+  hideMIDISelect() {
+    this.midiUI.style.display = "none";
   }
 
   /**
@@ -430,6 +473,8 @@ class Tether {
     });
 
     this.hideCallControls();
+    this.hideLocalVideo();
+    this.hideRemoteVideo();
 
     if (that.remoteStream) {
       that.remoteStream.getTracks().forEach(track => track.stop());
@@ -446,6 +491,10 @@ class Tether {
     document.querySelector('#createBtn').disabled = true;
     document.querySelector('#hangupBtn').disabled = true;
     document.querySelector('#currentRoom').innerText = '';
+    document.querySelector('#copyID').style.visibility = 'hidden';
+
+    this.hideMIDIInit();
+    this.hideMIDISelect();
 
     // Delete room on hangup
     if (that.roomId) {
@@ -514,17 +563,17 @@ class Tether {
       const option = document.createElement('option');
       option.value = deviceInfo.deviceId;
       if (deviceInfo.kind === 'audioinput') {
-        option.text = deviceInfo.label || `audio input ${audioInputSelect.length + 1}`;
+        option.text = deviceInfo.label || `audio input ${that.audioInputSelect.length + 1}`;
         that.micInputSelect.appendChild(option);
         let option2 = document.createElement('option');
         option2.value = deviceInfo.deviceId;
-        option2.text = deviceInfo.label || `audio input ${audioInputSelect.length + 1}`;
+        option2.text = deviceInfo.label || `audio input ${that.audioInputSelect.length + 1}`;
         that.auxInputSelect.appendChild(option2);
       } else if (deviceInfo.kind === 'audiooutput') {
-        option.text = deviceInfo.label || `speaker ${audioOutputSelect.length + 1}`;
+        option.text = deviceInfo.label || `speaker ${that.audioOutputSelect.length + 1}`;
         that.audioOutputSelect.appendChild(option);
       } else if (deviceInfo.kind === 'videoinput') {
-        option.text = deviceInfo.label || `camera ${videoSelect.length + 1}`;
+        option.text = deviceInfo.label || `camera ${that.videoSelect.length + 1}`;
         that.videoSelect.appendChild(option);
       } else {
         console.log('Some other kind of source/device: ', deviceInfo);
@@ -685,7 +734,7 @@ class Tether {
     this.localDataChannel.send("Hello");
   }
 
-} // End of Tensor Class
+} // End of Tether Class
 
 window.onload = ()=> {
   window.app = new Tether();
