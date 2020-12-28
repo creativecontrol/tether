@@ -462,6 +462,11 @@ class Tether {
     this.midiUI.style.display = "none";
   }
 
+  showLoader() {
+    document.querySelector('.loader').style.visibility = "visible";
+
+  }
+
   /**
   */
   async hangUp(e) {
@@ -496,6 +501,8 @@ class Tether {
     this.hideMIDIInit();
     this.hideMIDISelect();
 
+    this.showLoader();
+
     // Delete room on hangup
     if (that.roomId) {
       //that.db = firebase.firestore();
@@ -511,7 +518,7 @@ class Tether {
       await that.roomRef.delete();
     }
 
-    document.location.reload(true);
+    setTimeout(() => document.location.reload(true), 1000);
   }
 
   /**

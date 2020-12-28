@@ -166,3 +166,31 @@ div#videos > #remoteVideo {
   flex: 1;
   visibility: hidden;
 }
+
+.loader {
+  background-color: #333333aa;
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top:0;
+  visibility: hidden;
+  width: 100%;
+  z-index: 100;
+}
+#loader {
+  animation: spin 2s linear infinite;
+  border: 16px solid #f3f3f3; /* Light grey */
+  border-top: 16px solid #34abeb; /* Blue */
+  border-radius: 50%;
+  height: 120px;
+  left: 50%;
+  position: fixed;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
