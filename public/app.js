@@ -97,20 +97,20 @@ class Tether {
     }
 
     this.micInputSelect.onchange = () => {this.startMedia()};
-    this.auxInputSelect.onchange = () => {this.startAuxMedia()};
     this.audioOutputSelect.onchange = () => {this.changeAudioDestination()};
     this.videoSelect.onchange = () => {this.startMedia()};
 
-    this.auxInputActivate.onchange = (action) => {
-      console.log(this.auxInputActivate.checked);
-      if (this.auxInputActivate.checked && !this.auxInputActive) {
-         this.auxSourceCreate();
-         this.auxInputActive = true;
-       } else {
-         this.auxSourceDestroy();
-         this.auxInputActive = false;
-       }
-    }
+    // this.auxInputSelect.onchange = () => {this.startAuxMedia()};
+    // this.auxInputActivate.onchange = (action) => {
+    //   console.log(this.auxInputActivate.checked);
+    //   if (this.auxInputActivate.checked && !this.auxInputActive) {
+    //      this.auxSourceCreate();
+    //      this.auxInputActive = true;
+    //    } else {
+    //      this.auxSourceDestroy();
+    //      this.auxInputActive = false;
+    //    }
+    // }
 
     this.micMuteToggle.listen('click', () => {
       this.micControlAction(this.micMuteToggle.on);
@@ -251,6 +251,7 @@ class Tether {
         console.log('Add a track to the remoteStream:', track);
         that.remoteStream.addTrack(track);
       });
+      that.showRemoteVideo();
     });
 
     // Listening for remote session description below
@@ -437,7 +438,6 @@ class Tether {
     let videoSource = this.videoSelect.value;
     let constraints = {
       audio: {
-        channelCount: {min: 1},
         deviceId: micSource ? {exact: micSource} : undefined
       },
       video: {
