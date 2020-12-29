@@ -774,40 +774,9 @@ class Tether {
     let message = JSON.parse(midiMessage);
     console.log(message);
     if (this.currentMIDIOutput) {
-
-      let command = message.data[0];
-      let midiChannelOffset = 1;
-
-      let noteOn = 144;
-      let noteOff = 128;
-      let noteRange = 16;
-
-      let ccMessage = 176;
-      let ccMessageRange = 16;
-
-      if (command >= noteOn && command < noteOn+noteRange) {
-        console.log('sending note on');
-        let note = message.data[1];
-        let velocity = (message.data[2] !== undefined) ? message.data[2] : 0;
-        let channel = command - noteOn + midiChannelOffset;
-        if (velocity > 0) {
-            that.currentMIDIOutput.playNote(note, channel, {velocity: velocity});
-        } else {
-            that.currentMIDIOutput.stopNote(note, channel);
-        }
-      } else if (command >= noteOff && command < noteOff+noteRange) {
-          let note = message.data[1];
-          let channel = command - noteOff + midiChannelOffset;
-
-          that.currentMIDIOutput.stopNote(note, channel);
-
-      } else if (command >= ccMessage && command < ccMessage+ccMessageRange) {
-          let controlNumber = message.data[1];
-          let controlValue = message.data[2];
-          let channel = command - ccMessage + midiChannelOffset;
-
-          that.currentMIDIOutput.sendControlChange(controlNumber, controlValue, channel);
-      }
+      let statusByte = message.data[0];
+      let dataArray = Object.values(message.data);
+      this.currentMIDIOutput.send(statusByte, dataArray.slice(1));
     }
   }
 
