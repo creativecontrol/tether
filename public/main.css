@@ -126,6 +126,14 @@ button {
   position: fixed;
 }
 
+#settingsDialog #auxActivate {
+  display: none;
+}
+
+#settingsDialog #auxSource {
+  display: none;
+}
+
 #notifications {
   background: #FFF;
   bottom: 0;

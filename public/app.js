@@ -5,6 +5,7 @@
   - Settings should also allow for separate outputs for mic and audio streams (if possible)
 
   - Move MIDI handling to a new class/file for simplicity
+  - Add CC message handling
 */
 class Tether {
   constructor() {
@@ -28,7 +29,9 @@ class Tether {
     this.peerConnection = null;
     this.localVideo = document.querySelector('#localVideo');
     this.localStream = null;
+    this.localAuxStream = null;
     this.remoteStream = null;
+    this.remoteAuxStream = null;
     this.localDataChannel = null;
     this.dataChannelIsOpen = false;
     this.receiveDataChannel = null;
@@ -38,6 +41,8 @@ class Tether {
     this.settingsDialog = null;
     this.settingsAction = document.getElementById("settingsButton");
     this.auxInputSelect = document.querySelector('select#auxSource');
+    this.auxInputActivate = document.querySelector('#auxActivate');
+    this.auxInputActive = false;
     this.micInputSelect = document.querySelector('select#micSource');
     this.audioOutputSelect = document.querySelector('select#audioOutput');
     this.videoSelect = document.querySelector('select#videoSource');
@@ -56,7 +61,7 @@ class Tether {
 
     this.micMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("microphone"));
     this.videoMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("videoFeed"));
-    this.audioMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("audioIn"));
+    this.auxMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("audioIn"));
 
     this.init();
 
@@ -92,9 +97,20 @@ class Tether {
     }
 
     this.micInputSelect.onchange = () => {this.startMedia()};
-    this.auxInputSelect.onchange = () => {this.startMedia()};
+    this.auxInputSelect.onchange = () => {this.startAuxMedia()};
     this.audioOutputSelect.onchange = () => {this.changeAudioDestination()};
     this.videoSelect.onchange = () => {this.startMedia()};
+
+    this.auxInputActivate.onchange = (action) => {
+      console.log(this.auxInputActivate.checked);
+      if (this.auxInputActivate.checked && !this.auxInputActive) {
+         this.auxSourceCreate();
+         this.auxInputActive = true;
+       } else {
+         this.auxSourceDestroy();
+         this.auxInputActive = false;
+       }
+    }
 
     this.micMuteToggle.listen('click', () => {
       this.micControlAction(this.micMuteToggle.on);
@@ -102,6 +118,10 @@ class Tether {
 
     this.videoMuteToggle.listen('click', () => {
       this.videoControlAction(this.videoMuteToggle.on);
+    });
+
+    this.auxMuteToggle.listen('click', () => {
+      this.auxControlAction(this.auxMuteToggle.on);
     });
 
     this.activateMidiAction.onclick = () => {
@@ -152,6 +172,10 @@ class Tether {
     this.localStream.getVideoTracks()[0].enabled = status;
   }
 
+  auxControlAction(status) {
+    this.localAuxStream.getAudioTracks()[0].enabled = status;
+  }
+
   async createRoom() {
     let that = this;
 
@@ -169,6 +193,10 @@ class Tether {
       that.peerConnection.addTrack(track, that.localStream);
     });
 
+    // this.localAuxStream.getTracks().forEach(track => {
+    //   that.peerConnection.addTrack(track, that.localAuxStream);
+    // });
+
     // Add dataChannel for MIDI sending
 
     this.localDataChannel = this.peerConnection.createDataChannel('midi');
@@ -182,8 +210,6 @@ class Tether {
     this.localDataChannel.onmessage = event => {
       that.handleMIDIMessage(event.data);
     };
-
-
 
     // Code for collecting ICE candidates below
     this.callerCandidatesCollection = this.roomRef.collection('callerCandidates');
@@ -410,10 +436,44 @@ class Tether {
     let micSource = this.micInputSelect.value;
     let videoSource = this.videoSelect.value;
     let constraints = {
-      audio: {deviceId: micSource ? {exact: micSource} : undefined},
-      video: {deviceId: videoSource ? {exact: videoSource} : undefined}
+      audio: {
+        channelCount: {min: 1},
+        deviceId: micSource ? {exact: micSource} : undefined
+      },
+      video: {
+        deviceId: videoSource ? {exact: videoSource} : undefined
+      }
     };
     this.stream = await navigator.mediaDevices.getUserMedia(constraints)
+      .then((stream) => {
+        return that.gotStream(stream);
+      })
+      .then((deviceInfo) => {
+        console.log('chain device info:', deviceInfo);
+        return that.gotDevices(deviceInfo);
+      })
+      .catch((e) => {
+        that.handleGetMediaError(e);
+      });
+  }
+
+  async startAuxMedia() {
+    let that = this;
+
+    if (this.auxStream) {
+      this.auxStream.getTracks().forEach(track => {
+        track.stop();
+      });
+    }
+    let auxSource = this.auxInputSelect.value;
+    let constraints = {
+      audio: {
+        channelCount: {ideal: 2, min: 1},
+        deviceId: auxSource ? {exact: auxSource} : undefined
+      },
+      video: false
+    };
+    this.auxStream = await navigator.mediaDevices.getUserMedia(constraints)
       .then((stream) => {
         return that.gotStream(stream);
       })
@@ -622,6 +682,14 @@ class Tether {
     attachSinkId(that.localVideo, audioDestination);
   }
 
+  auxSourceCreate() {
+
+  }
+
+  auxSourceDestroy() {
+
+  }
+
   initMidi () {
     let that = this;
 
@@ -708,25 +776,37 @@ class Tether {
     if (this.currentMIDIOutput) {
 
       let command = message.data[0];
-      let note = message.data[1];
-      let channel = command;
-      let velocity = (message.data[2] !== undefined) ? message.data[2] : 0;
+      let midiChannelOffset = 1;
 
       let noteOn = 144;
       let noteOff = 128;
       let noteRange = 16;
 
+      let ccMessage = 176;
+      let ccMessageRange = 16;
+
       if (command >= noteOn && command < noteOn+noteRange) {
         console.log('sending note on');
-        let channel = command - noteOn + 1;
+        let note = message.data[1];
+        let velocity = (message.data[2] !== undefined) ? message.data[2] : 0;
+        let channel = command - noteOn + midiChannelOffset;
         if (velocity > 0) {
             that.currentMIDIOutput.playNote(note, channel, {velocity: velocity});
         } else {
             that.currentMIDIOutput.stopNote(note, channel);
         }
-      } else if(command >= noteOff && command < noteOff+noteRange) {
-          let channel = command - noteOff;
+      } else if (command >= noteOff && command < noteOff+noteRange) {
+          let note = message.data[1];
+          let channel = command - noteOff + midiChannelOffset;
+
           that.currentMIDIOutput.stopNote(note, channel);
+
+      } else if (command >= ccMessage && command < ccMessage+ccMessageRange) {
+          let controlNumber = message.data[1];
+          let controlValue = message.data[2];
+          let channel = command - ccMessage + midiChannelOffset;
+
+          that.currentMIDIOutput.sendControlChange(controlNumber, controlValue, channel);
       }
     }
   }
