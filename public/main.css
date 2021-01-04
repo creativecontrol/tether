@@ -9,6 +9,7 @@ body {
 }
 
 .heading {
+  align-items: center;
   display: flex;
   height: 100px;
 }
@@ -20,6 +21,10 @@ body {
 
 #title > #logo {
   height: 75px;
+}
+
+#callControls {
+  display = block;
 }
 
 .video {
@@ -126,6 +131,17 @@ button {
   position: fixed;
 }
 
+#fullscreen {
+  background: #464747;
+  border-radius: 0 0 10px 10px;
+  bottom: 0;
+  right:0;
+  position: fixed;
+}
+
+.mdc-dialog .mdc-dialog__surface {
+  max-width: 1000px;
+}
 #settingsDialog #auxActivate {
   display: none;
 }
@@ -156,6 +172,18 @@ div#videos {
     flex-wrap: wrap;
 }
 
+#videos:-webkit-full-screen,
+#videos:-moz-full-screen,
+#videos:-ms-fullscreen,
+#videos:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    }
+
+video::-webkit-media-controls {
+  display:none !important;
+}
+
 div#videos > video {
     background: black;
     display: block;
@@ -169,7 +197,7 @@ div#videos > #localVideo {
 }
 
 div#videos > #remoteVideo {
-  width: 640px;
+  /* width: 640px; */
   height: 100%;
   flex: 1;
   visibility: hidden;

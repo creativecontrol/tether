@@ -26,10 +26,13 @@ class Tether {
     this.db = null;
     this.roomRef = null;
 
+    this.callControl = document.querySelector('#callControl');
+
     this.peerConnection = null;
     this.localVideo = document.querySelector('#localVideo');
     this.localStream = null;
     this.localAuxStream = null;
+    this.remoteVideo = document.querySelector('#remoteVideo');
     this.remoteStream = null;
     this.remoteAuxStream = null;
     this.localDataChannel = null;
@@ -63,6 +66,8 @@ class Tether {
     this.videoMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("videoFeed"));
     this.auxMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("audioIn"));
 
+    this.fullscreenToggle = document.querySelector("#fullscreenButton");
+
     this.init();
 
   }
@@ -80,6 +85,16 @@ class Tether {
         // ...
       });
 
+      this.callControl.onclick = () => {
+        let controls = document.querySelector('#callControls');
+        if (controls.style.display === "block") {
+          document.querySelector('#callControl span').textContent = "Show Call Controls";
+          controls.style.display = "none";
+        } else {
+          document.querySelector('#callControl span').textContent = "Hide Call Controls";
+          controls.style.display = "block";
+        }
+      };
 
     navigator.mediaDevices.enumerateDevices().then((deviceInfo) => {this.gotDevices(deviceInfo)}).catch((e) => {that.handleGetMediaError(e)});
     document.querySelector('#cameraBtn').onclick = ()=>{this.openUserMedia();};
@@ -123,6 +138,10 @@ class Tether {
     this.auxMuteToggle.listen('click', () => {
       this.auxControlAction(this.auxMuteToggle.on);
     });
+
+    this.fullscreenToggle.onclick = () => {
+      this.fullscreenAction();
+    };
 
     this.activateMidiAction.onclick = () => {
       that.hideMIDIInit();
@@ -438,6 +457,7 @@ class Tether {
     let videoSource = this.videoSelect.value;
     let constraints = {
       audio: {
+        channelCount: {ideal: 4, min: 1},
         deviceId: micSource ? {exact: micSource} : undefined
       },
       video: {
@@ -494,10 +514,10 @@ class Tether {
   }
 
   showRemoteVideo() {
-    document.querySelector('#remoteVideo').style.visibility = "visible";
+    this.remoteVideo.style.visibility = "visible";
   }
   hideRemoteVideo() {
-    document.querySelector('#remoteVideo').style.visibility = "hidden";
+    this.remoteVideo.style.visibility = "hidden";
   }
 
   showCallControls() {
@@ -524,7 +544,45 @@ class Tether {
 
   showLoader() {
     document.querySelector('.loader').style.visibility = "visible";
+  }
 
+  fullscreenAction(status) {
+    /*
+      Hide controls, title and local video
+      Maybe allow for settings mouse over in upper right corner
+      Make remote video cover the full screen with a black background
+    */
+
+    if (
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    ){
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    }else{
+      // this.hideLocalVideo();
+      this.showRemoteVideo();
+
+      let element = this.remoteVideo;
+      if (element.requestFullscreen) {
+        element.requestFullscreen();
+      } else if (element.mozRequestFullScreen) {
+        element.mozRequestFullScreen();
+      } else if (element.webkitRequestFullscreen) {
+        element.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+      } else if (element.msRequestFullscreen) {
+        element.msRequestFullscreen();
+      }
+    }
   }
 
   /**

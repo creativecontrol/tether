@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tether VC</title>
+    <title>tether</title>
     <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="/icons/apple-icon-60x60.png">
     <link rel="apple-touch-icon" sizes="72x72" href="/icons/apple-icon-72x72.png">
@@ -49,30 +49,36 @@
     <img src="/images/tether_logo_lt_deep.png" id="logo">
     <img src="/images/tether_title.png">
   </div>
-  <div class="heading-child" id>
-    <button class="mdc-icon-button" id="copyID">
-      <i class="material-icons mdc-button__icon" aria-hidden="true">content_copy</i>
+  <div class="heading-child">
+    <button id="callControl" class="mdc-button mdc-button--raised">
+      <i class="material-icons mdc-button__icon" aria-hidden="true">web_asset</i>
+      <span class="mdc-button__label">Hide Call Controls</span>
     </button>
-    <span id="currentRoom"></span>
   </div>
 </div>
-<div id="buttons">
-    <button class="mdc-button mdc-button--raised" id="cameraBtn">
-        <i class="material-icons mdc-button__icon" aria-hidden="true">perm_camera_mic</i>
-        <span class="mdc-button__label">Open camera & microphone</span>
-    </button>
-    <button class="mdc-button mdc-button--raised" disabled id="createBtn">
-        <i class="material-icons mdc-button__icon" aria-hidden="true">group_add</i>
-        <span class="mdc-button__label">Create room</span>
-    </button>
-    <button class="mdc-button mdc-button--raised" disabled id="joinBtn">
-        <i class="material-icons mdc-button__icon" aria-hidden="true">group</i>
-        <span class="mdc-button__label">Join room</span>
-    </button>
-    <button class="mdc-button mdc-button--raised" disabled id="hangupBtn">
-        <i class="material-icons mdc-button__icon" aria-hidden="true">close</i>
-        <span class="mdc-button__label">Hangup</span>
-    </button>
+<div id="callControls" style="display:block;">
+      <button class="mdc-button mdc-button--raised" id="cameraBtn">
+          <i class="material-icons mdc-button__icon" aria-hidden="true">perm_camera_mic</i>
+          <span class="mdc-button__label">Open camera & microphone</span>
+      </button>
+      <button class="mdc-button mdc-button--raised" disabled id="createBtn">
+          <i class="material-icons mdc-button__icon" aria-hidden="true">group_add</i>
+          <span class="mdc-button__label">Create room</span>
+      </button>
+      <button class="mdc-button mdc-button--raised" disabled id="joinBtn">
+          <i class="material-icons mdc-button__icon" aria-hidden="true">group</i>
+          <span class="mdc-button__label">Join room</span>
+      </button>
+      <button class="mdc-button mdc-button--raised" disabled id="hangupBtn">
+          <i class="material-icons mdc-button__icon" aria-hidden="true">close</i>
+          <span class="mdc-button__label">Hangup</span>
+      </button>
+      <!-- <div> -->
+        <button class="mdc-icon-button" id="copyID">
+          <i class="material-icons mdc-button__icon" aria-hidden="true">content_copy</i>
+        </button>
+        <span id="currentRoom"></span>
+      <!-- </div> -->
 </div>
 <div id="midiInactive">
     <button class="mdc-button mdc-button--raised" id="activateMidi">
@@ -194,6 +200,12 @@
 </div>
 
 <div id="notifications">
+</div>
+
+<div id="fullscreen">
+  <button class="mdc-icon-button" aria-pressed="true" id="fullscreenButton">
+    <i class="material-icons mdc-icon-button__icon">fullscreen</i>
+  </button>
 </div>
 
 <script src="app.js"></script>
