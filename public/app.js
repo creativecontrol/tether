@@ -5,7 +5,8 @@
   - Settings should also allow for separate outputs for mic and audio streams (if possible)
 
   - Move MIDI handling to a new class/file for simplicity
-  - Add CC message handling
+  - Allow for staring of a call from a browser variable (added basic functionality using ?room and ?joinRoom. this will be better in a multiuser situation)
+    - Maybe this would work better if you just join a room. If it doesn't exist, make it, if it does then join it.
 */
 class Tether {
   constructor() {
@@ -25,8 +26,11 @@ class Tether {
 
     this.db = null;
     this.roomRef = null;
+    this.urlRoomRef = null;
+    this.joinRoomRef = null;
 
-    this.callControl = document.querySelector('#callControl');
+    this.callControlButton = document.querySelector('#callControl');
+    this.midiControlButton = document.querySelector('#midiControl');
 
     this.peerConnection = null;
     this.localVideo = document.querySelector('#localVideo');
@@ -40,6 +44,8 @@ class Tether {
     this.receiveDataChannel = null;
     this.roomDialog = null;
     this.roomId = null;
+
+    this.callControls = document.querySelector('#controls');
 
     this.settingsDialog = null;
     this.settingsAction = document.getElementById("settingsButton");
@@ -67,6 +73,7 @@ class Tether {
     this.auxMuteToggle = new mdc.iconButton.MDCIconButtonToggle(document.getElementById("audioIn"));
 
     this.fullscreenToggle = document.querySelector("#fullscreenButton");
+    this.loadingAnimation = document.querySelector('.loader');
 
     this.init();
 
@@ -74,6 +81,8 @@ class Tether {
 
   init() {
     let that = this;
+
+    this.checkForRoomName();
 
     firebase.auth().signInAnonymously()
       .then(() => {
@@ -85,7 +94,7 @@ class Tether {
         // ...
       });
 
-      this.callControl.onclick = () => {
+      this.callControlButton.onclick = () => {
         let controls = document.querySelector('#callControls');
         if (controls.style.display === "block") {
           document.querySelector('#callControl span').textContent = "Show Call Controls";
@@ -95,6 +104,17 @@ class Tether {
           controls.style.display = "block";
         }
       };
+
+    this.midiControlButton.onclick = () => {
+      let controls = document.querySelector('#midiActive');
+      if (controls.style.display === "block") {
+        document.querySelector('#midiControl span').textContent = "Show MIDI Controls";
+        this.removeElement(this.midiUI);
+      } else {
+        document.querySelector('#midiControl span').textContent = "Hide MIDI Controls";
+        this.displayElement(this.midiUI);
+      }
+    }
 
     navigator.mediaDevices.enumerateDevices().then((deviceInfo) => {this.gotDevices(deviceInfo)}).catch((e) => {that.handleGetMediaError(e)});
     document.querySelector('#cameraBtn').onclick = ()=>{this.openUserMedia();};
@@ -144,10 +164,11 @@ class Tether {
     };
 
     this.activateMidiAction.onclick = () => {
-      that.hideMIDIInit();
-      that.showMIDISelect();
+      this.removeElement(this.midiInitButton);
+      that.displayElement(that.midiUI);
       // Tone.context.resume();
       that.initMidi();
+      that.showElement(that.midiControlButton);
     }
 
     this.midiRefresh.onclick = () => {
@@ -195,13 +216,23 @@ class Tether {
     this.localAuxStream.getAudioTracks()[0].enabled = status;
   }
 
+  checkForRoomName() {
+    let urlParams = new URLSearchParams(window.location.search);
+    this.urlRoomRef = urlParams.get('room');
+    this.joinRoomRef = urlParams.get('joinRoom');
+  }
+
   async createRoom() {
     let that = this;
 
     document.querySelector('#createBtn').disabled = true;
     document.querySelector('#joinBtn').disabled = true;
 
-    this.roomRef = await this.db.collection('rooms').doc(this.generateId());
+    if(this.urlRoomRef) {
+      this.roomRef = await this.db.collection('rooms').doc(this.urlRoomRef);
+    } else {
+      this.roomRef = await this.db.collection('rooms').doc(this.generateId());
+    }
 
     console.log('Create PeerConnection with configuration: ', that.configuration);
     this.peerConnection = new RTCPeerConnection(that.configuration);
@@ -261,7 +292,8 @@ class Tether {
         '#currentRoom').innerText = `Current room is ${this.roomRef.id} - You are the caller!`;
     document.querySelector('#copyID').style.visibility = "visible";
     document.querySelector('#currentRoom').style.visibility = "visible";
-    this.showMIDIInit();
+    this.displayElement(this.midiInitButton);
+
     // Code for creating a room above
 
     this.peerConnection.addEventListener('track', event => {
@@ -270,7 +302,7 @@ class Tether {
         console.log('Add a track to the remoteStream:', track);
         that.remoteStream.addTrack(track);
       });
-      that.showRemoteVideo();
+      that.showElement(that.remoteVideo);
     });
 
     // Listening for remote session description below
@@ -324,7 +356,7 @@ class Tether {
 
   /**
   */
-  joinRoom() {
+  async joinRoom() {
     let that = this;
     document.querySelector('#createBtn').disabled = true;
     document.querySelector('#joinBtn').disabled = true;
@@ -336,10 +368,22 @@ class Tether {
           document.querySelector(
               '#currentRoom').innerText = `Current room is ${that.roomId} - You are the callee!`;
           document.querySelector('#currentRoom').style.visibility = "visible";
-          that.showMIDIInit();
+          that.displayElement(that.midiInitButton);
           await that.joinRoomById(that.roomId);
         }, {once: true});
-    this.roomDialog.open();
+
+    if(this.joinRoomRef) {
+      this.roomId = this.joinRoomRef;
+      console.log('Join room: ', that.roomId);
+      document.querySelector(
+          '#currentRoom').innerText = `Current room is ${that.roomId} - You are the callee!`;
+      document.querySelector('#currentRoom').style.visibility = "visible";
+      that.displayElement(that.midiInitButton);
+      await that.joinRoomById(that.roomId);
+    } else {
+      this.roomDialog.open();
+    }
+
   }
 
   /**
@@ -378,7 +422,7 @@ class Tether {
           console.log('Add a track to the remoteStream:', track);
           that.remoteStream.addTrack(track);
         });
-        that.showRemoteVideo();
+        that.showElement(this.remoteVideo);
       });
 
       // Handle MIDI over the DataChannel
@@ -429,8 +473,9 @@ class Tether {
     this.startMedia();
     // this.localVideo.srcObject = this.stream;
     // this.localStream = this.stream;
-    this.showLocalVideo();
-    this.showCallControls();
+    this.showElement(this.localVideo);
+    this.showElement(this.callControls);
+    this.showElement(this.callControlButton);
     this.remoteStream = new MediaStream();
     document.querySelector('#remoteVideo').srcObject = this.remoteStream;
 
@@ -506,51 +551,22 @@ class Tether {
       });
   }
 
-  showLocalVideo() {
-    document.querySelector('#localVideo').style.visibility = "visible";
+  showElement(element) {
+    element.style.visibility = "visible";
   }
-  hideLocalVideo() {
-    document.querySelector('#localVideo').style.visibility = "hidden";
+  hideElement(element) {
+    element.style.visibility = "hidden";
   }
-
-  showRemoteVideo() {
-    this.remoteVideo.style.visibility = "visible";
+  displayElement(element) {
+    element.style.display = "block";
   }
-  hideRemoteVideo() {
-    this.remoteVideo.style.visibility = "hidden";
-  }
-
-  showCallControls() {
-    document.querySelector('#controls').style.visibility = "visible";
-  }
-  hideCallControls() {
-    document.querySelector('#controls').style.visibility = "hidden";
-  }
-
-  showMIDIInit() {
-    this.midiInitButton.style.display = "block";
-    this.midiInitButton.style.visibility = "visible";
-  }
-  hideMIDIInit() {
-    this.midiInitButton.style.display = "none";
-  }
-
-  showMIDISelect() {
-    this.midiUI.style.display = "block";
-  }
-  hideMIDISelect() {
-    this.midiUI.style.display = "none";
-  }
-
-  showLoader() {
-    document.querySelector('.loader').style.visibility = "visible";
+  removeElement(element) {
+    element.style.display = "none";
   }
 
   fullscreenAction(status) {
     /*
-      Hide controls, title and local video
-      Maybe allow for settings mouse over in upper right corner
-      Make remote video cover the full screen with a black background
+      Maybe allow for settings mouse over in upper right corner, may have to add it to the remoteVideo div
     */
 
     if (
@@ -569,8 +585,7 @@ class Tether {
         document.msExitFullscreen();
       }
     }else{
-      // this.hideLocalVideo();
-      this.showRemoteVideo();
+      this.showElement(this.remoteVideo);
 
       let element = this.remoteVideo;
       if (element.requestFullscreen) {
@@ -595,9 +610,11 @@ class Tether {
       track.stop();
     });
 
-    this.hideCallControls();
-    this.hideLocalVideo();
-    this.hideRemoteVideo();
+    this.hideElement(this.callControls);
+    this.hideElement(this.localVideo);
+    this.hideElement(this.remoteVideo);
+    this.hideElement(this.midiControlButton);
+    this.hideElement(this.callControlButton);
 
     if (that.remoteStream) {
       that.remoteStream.getTracks().forEach(track => track.stop());
@@ -616,10 +633,10 @@ class Tether {
     document.querySelector('#currentRoom').innerText = '';
     document.querySelector('#copyID').style.visibility = 'hidden';
 
-    this.hideMIDIInit();
-    this.hideMIDISelect();
+    this.removeElement(this.midiInitButton);
+    this.removeElement(this.midiUI);
 
-    this.showLoader();
+    this.showElement(this.loadingAnimation);
 
     // Delete room on hangup
     if (that.roomId) {

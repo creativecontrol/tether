@@ -23,6 +23,13 @@ body {
   height: 75px;
 }
 
+#callControl {
+  visibility: hidden;
+}
+#midiControl {
+  visibility: hidden;
+}
+
 #callControls {
   display = block;
 }
@@ -108,7 +115,7 @@ button {
 }
 
 #midiInactive {
-  visibility: hidden;
+  display: none;
 }
 
 #midiActive {
