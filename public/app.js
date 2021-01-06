@@ -12,17 +12,27 @@ class Tether {
   constructor() {
     mdc.ripple.MDCRipple.attachTo(document.querySelector('.mdc-button'));
 
-    this.configuration = {
-      iceServers: [
-        {
-          urls: [
-            'stun:stun1.l.google.com:19302',
-            'stun:stun2.l.google.com:19302',
-          ],
-        },
-      ],
-      iceCandidatePoolSize: 10,
-    };
+    // this.configuration = {
+    //   iceServers: [
+    //     {
+    //       urls: [
+    //         'stun:stun1.l.google.com:19302',
+    //         'stun:stun2.l.google.com:19302',
+    //       ],
+    //     },
+    //     {
+    //       urls: "turn:numb.viagenie.ca",
+    //       credential: "6CdMbe9!S6P!V4u",
+    //       username: "tether",
+    //     },
+    //   ],
+    //   iceCandidatePoolSize: 10,
+    // };
+
+    this.configuration = null;
+
+    this.functions = firebase.functions();
+    this.getICEServerConfig = this.functions.httpsCallable('getICEConfig');
 
     this.db = null;
     this.roomRef = null;
@@ -91,8 +101,16 @@ class Tether {
       .catch((error) => {
         var errorCode = error.code;
         var errorMessage = error.message;
-        // ...
       });
+
+      this.getICEServerConfig()
+        .then((result) => {
+          console.log(result);
+          that.configuration = result.data;
+        })
+        .catch((error) => {
+          console.log(error.code + error.message);
+        });
 
       this.callControlButton.onclick = () => {
         let controls = document.querySelector('#callControls');
