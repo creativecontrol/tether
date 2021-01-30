@@ -1,0 +1,26 @@
+{
+  "name": "tether",
+  "version": "1.0.0",
+  "description": "experimental video conferencing for artistic collaboration. built on web-rtc and firebase.",
+  "main": "index.js",
+  "dependencies": {
+    "eslint-config-google": "^0.14.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.18.0",
+    "eslint-plugin-html": "^6.1.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/creativecontrol/tether.git"
+  },
+  "author": "Thadeus Frazier-Reed",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/creativecontrol/tether/issues"
+  },
+  "homepage": "https://github.com/creativecontrol/tether#readme"
+}
